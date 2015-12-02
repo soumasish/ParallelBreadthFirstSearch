@@ -44,12 +44,13 @@ int main(int argc, char** argv){
 	
 	bool* h_done;
 	bool* d_done;
-
+	int current_depth = 1;
 	&h_done = true;
 
 	while(!h_done){
 		cudaMemcpy(&d_done, &h_done, sizeof(bool), cudaHostToDevice);
 		bfs<<<1, NUM_EDGES>>>(h_edges, h_vertices, current_depth);
+		current_depth++;
 		cudaMemcpy(&h_done, &d_done, sizeof(bool), cudaHostToDevice);
 	}
 
