@@ -1,4 +1,4 @@
-__global__ void initialize_vertices(Vertex* vertices, int starting_vertex, int num_vertices){
+__global__ void initialize_vertices(int* vertices, int starting_vertex, int num_vertices){
 	
 	int v = blockDim.x * blockIdx.x + threadIdx
 	if( v == starting_vertex){

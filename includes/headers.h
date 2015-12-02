@@ -1,11 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-typedf struct Vertex
-{
-	int value;
-}Vertex;
-
 typedf struct Edge
 {
 	int first;
