@@ -1,7 +1,8 @@
 __global__ void initialize_vertices(Vertex* vertices, int starting_vertex, int num_vertices){
 	
 	int v = blockDim.x * blockIdx.x + threadIdx
-	if()		vertices[v] = 0;
+	if( v == starting_vertex){
+		vertices[v] = 0;		
 	}else{
 		vertices[v] = -1;
 	} 

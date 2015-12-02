@@ -2,6 +2,11 @@
 
 int main(int argc, char** argv){
 	
+	const int NUM_VERTICES = 1000;
+	const int NUM_EDGES = 1000;
+
+	Vertex vertices[NUM_VERTICES];
+	Edge edges[NUM_EDGES];
 	
 	
 	bool* h_done;
