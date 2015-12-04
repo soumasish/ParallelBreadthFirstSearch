@@ -8,5 +8,5 @@ typedf struct Edge
 	
 }Edge;
 
-__global__ void initialize_vertices(Vertex* vertices, int starting_vertex, int num_vertices);
-__global__ void bfs(const Edge* edges, Vertex* vertices, int current_depth);
+__global__ void initialize_vertices(Vertex* , int, int );
+__global__ void bfs(const Edge* , int* , int* , bool* );

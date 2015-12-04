@@ -2,11 +2,11 @@
 
 int main(int argc, char** argv){
 	
-	const int NUM_VERTICES = 1000;
+	const int NUM_VERTICES = 10000;
 	const int VERTEX_BYTES = NUM_VERTICES * sizeof(int);
-	const int NUM_EDGES = 1000;
+	const int NUM_EDGES = 10000;
 	const int EDGE_BYTES = NUM_EDGES * sizeof(Edge);
-	const int STARTING_VERTEX = 5;
+	const int STARTING_VERTEX = 25;
 
 
 	int h_vertices[NUM_VERTICES];
@@ -17,7 +17,6 @@ int main(int argc, char** argv){
 		h_vertices[i] = i;
 	}
 		
-	
 	Edge h_edges[NUM_EDGES];
 	
 	
@@ -27,8 +26,7 @@ int main(int argc, char** argv){
 		e->first = (rand() % (NUM_VERTICES+1));
 		e->first = (rand() % (NUM_VERTICES+1));
 		memcpy(h_edges[i], e, sizeof(e));
-	}
-		
+	}	
 	
 	Edge* d_edges;
 	int* d_vertices;
@@ -39,19 +37,23 @@ int main(int argc, char** argv){
 	cudaMemcpy(d_edges, h_edges, EDGE_BYTES, cudaMemcpyHostToDevice);
 	cudaMemcpy(d_vertices, h_vertices, VERTEX_BYTES, cudaMemcpyHostToDevice);
 
-	initialize_vertices<<<1, NUM_VERTICES>>>(d_vertices, STARTING_VERTEX, NUM_VERTICES);
+	initialize_vertices<<<10, NUM_VERTICES>>>(d_vertices, STARTING_VERTEX, NUM_VERTICES);
 	
 	
 	bool* h_done;
 	bool* d_done;
-	int current_depth = 1;
-	&h_done = true;
+	int* d_current_depth;
+	int* h_current_depth;
 
+	&h_current_depth = 0;
+	&h_done = true;
+	
 	while(!h_done){
 		cudaMemcpy(&d_done, &h_done, sizeof(bool), cudaHostToDevice);
-		bfs<<<1, NUM_EDGES>>>(h_edges, h_vertices, current_depth);
-		current_depth++;
+		cudaMemcpy(&d_current_depth, &h_current_depth, sizeof(int), cudaHostToDevice);
+		bfs<<<10, NUM_EDGES>>>(h_edges, h_vertices, d_current_depth);
 		cudaMemcpy(&h_done, &d_done, sizeof(bool), cudaHostToDevice);
+		cudaMemcpy(&h_current_depth, &d_current_depth, sizeof(int), cudaHostToDevice);
 	}
 
 	
