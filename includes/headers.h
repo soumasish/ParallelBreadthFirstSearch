@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <cuda_runtime.h>
 
 typedef struct Edge
 {
@@ -8,5 +9,5 @@ typedef struct Edge
 	
 }Edge;
 
-__global__ void initialize_vertices(int* , int*);
-__global__ void bfs(const Edge* , int* , int* , bool*);
+__global__ void initialize_vertices(int* , int);
+__global__ void bfs(const Edge* , int* , int*, bool*);
