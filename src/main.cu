@@ -25,11 +25,7 @@ int main(int argc, char** argv){
 	Edge* d_edges;
 	int* d_vertices;
 
-	
-	//int starting_vertex = 25;
-	//int d_starting_vertex;
-	
-
+	//Allocate memory on device for both arrays
 	err = cudaMalloc((void**)&d_edges, EDGE_BYTES);
 	if (err != cudaSuccess)
     {
@@ -42,7 +38,7 @@ int main(int argc, char** argv){
         fprintf(stderr, "Failed to allocate vertices array on device (error code %s)!\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
-	//cudaMalloc(&d_starting_vertex, sizeof(int*));
+	
 
 	err = cudaMemcpy(d_edges, h_edges, EDGE_BYTES, cudaMemcpyHostToDevice);
 	if (err != cudaSuccess)
@@ -56,7 +52,7 @@ int main(int argc, char** argv){
         fprintf(stderr, "Failed to copy vertices array from host to device (error code %s)!\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
-	//cudaMemcpy(d_starting_vertex, h_starting_vertex, sizeof(int), cudaMemcpyHostToDevice);
+	//assign thread configuration
     int threadsPerBlock = 512;
     int blocksPerGrid =(NUM_VERTICES + threadsPerBlock - 1) / threadsPerBlock;
     printf("CUDA kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
@@ -68,16 +64,29 @@ int main(int argc, char** argv){
         fprintf(stderr, "Failed to launch initialization kernel (error code %s)!\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
-	
+	printf("Initialization completed\n");
 	bool h_done = true;
 	bool* d_done;
-	int* d_current_depth;
-	int h_current_depth = 0;
-
-	cudaMalloc((void**)&d_done, sizeof(bool));
-	cudaMalloc((void**)&d_current_depth, sizeof(int));
 	
+	int h_current_depth = 0;
+	int* d_current_depth;
+
+	err = cudaMalloc((void**)&d_done, sizeof(bool));
+	if (err != cudaSuccess)
+	{
+	    fprintf(stderr, "Failed to allocte d_done(error code %s)!\n", cudaGetErrorString(err));
+	    exit(EXIT_FAILURE);
+	}
+	err = cudaMalloc((void**)&d_current_depth, sizeof(int));
+	if (err != cudaSuccess)
+	{
+	    fprintf(stderr, "Failed to allocate d_current_depth(error code %s)!\n", cudaGetErrorString(err));
+	    exit(EXIT_FAILURE);
+	}
+	//printf("Reached here\n");
+
 	while(!h_done){
+		printf("Entered while loop\n");
 		err = cudaMemcpy(d_done, &h_done, sizeof(bool), cudaMemcpyHostToDevice);
 		if (err != cudaSuccess)
 	    {
@@ -95,6 +104,7 @@ int main(int argc, char** argv){
 	    printf("CUDA kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
 		bfs<<<blocksPerGrid, threadsPerBlock>>>(h_edges, h_vertices, d_current_depth, d_done);
+		//cudaThreadsSynchronize();
 		err = cudaGetLastError();
 		if (err != cudaSuccess)
 	    {
