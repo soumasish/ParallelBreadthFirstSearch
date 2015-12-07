@@ -8,6 +8,7 @@ int main(int argc, char** argv){
 	const size_t EDGE_BYTES = NUM_EDGES * sizeof(Edge);
 	const int STARTING_VERTEX = 25;
 	cudaError_t err = cudaSuccess;
+
 	
 	//declare the two arrays on host
 	int h_vertices[NUM_VERTICES];
@@ -57,7 +58,7 @@ int main(int argc, char** argv){
     int blocksPerGrid =(NUM_VERTICES + threadsPerBlock - 1) / threadsPerBlock;
     printf("CUDA kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
-	initialize_vertices<<<blocksPerGrid, threadsPerBlock>>>(d_vertices, STARTING_VERTEX);
+		initialize_vertices<<<blocksPerGrid, threadsPerBlock>>>(d_vertices, STARTING_VERTEX);
 	err = cudaGetLastError();
 	if (err != cudaSuccess)
     {
@@ -65,28 +66,33 @@ int main(int argc, char** argv){
         exit(EXIT_FAILURE);
     }
 	printf("Initialization completed\n");
-	bool h_done = true;
-	bool* d_done;
 	
-	int h_current_depth = 0;
+	//Allocate and initialize depth on host and device
 	int* d_current_depth;
+	int h_current_depth = 0;
 
-	err = cudaMalloc((void**)&d_done, sizeof(bool));
-	if (err != cudaSuccess)
-	{
-	    fprintf(stderr, "Failed to allocte d_done(error code %s)!\n", cudaGetErrorString(err));
-	    exit(EXIT_FAILURE);
-	}
 	err = cudaMalloc((void**)&d_current_depth, sizeof(int));
 	if (err != cudaSuccess)
 	{
 	    fprintf(stderr, "Failed to allocate d_current_depth(error code %s)!\n", cudaGetErrorString(err));
 	    exit(EXIT_FAILURE);
 	}
-	//printf("Reached here\n");
+	
+	//Allocate and initialize done on host and device
+	bool* d_done;
+	bool h_done;
+	err = cudaMalloc((void**)&d_done, sizeof(bool));
+	if (err != cudaSuccess)
+	{
+	    fprintf(stderr, "Failed to allocte d_done(error code %s)!\n", cudaGetErrorString(err));
+	    exit(EXIT_FAILURE);
+	}
+	
 
-	while(h_done != false){
-		printf("Entered while loop\n");
+	for(;;){
+		if(h_done == true) break;
+		h_done = true;
+		//printf("Entered while loop\n");
 		err = cudaMemcpy(d_done, &h_done, sizeof(bool), cudaMemcpyHostToDevice);
 		if (err != cudaSuccess)
 	    {
@@ -97,21 +103,23 @@ int main(int argc, char** argv){
 		err = cudaMemcpy(d_current_depth, &h_current_depth, sizeof(int), cudaMemcpyHostToDevice);
 		if (err != cudaSuccess)
 	    {
-	        fprintf(stderr, "Failed to launch copy h_current_depth to kernel(error code %s)!\n", cudaGetErrorString(err));
+	        fprintf(stderr, "Failed to copy h_current_depth to kernel(error code %s)!\n", cudaGetErrorString(err));
 	        exit(EXIT_FAILURE);
 	    }
 
-	    printf("CUDA kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
+	    printf("CUDA kernel launching with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
 		bfs<<<blocksPerGrid, threadsPerBlock>>>(d_edges, d_vertices, d_current_depth, d_done);
-		//cudaThreadsSynchronize();
-		//err = cudaGetLastError();
-		// if (err != cudaSuccess)
-	 //    {
-	 //        fprintf(stderr, "Failed to launch bfs kernel (error code %s)!\n", cudaGetErrorString(err));
-	 //        exit(EXIT_FAILURE);
-	 //    }
-		printf("second kernel call finished\n");
+		cudaThreadSynchronize();
+
+		err = cudaGetLastError();
+		if (err != cudaSuccess)
+	    {
+	        fprintf(stderr, "Failed to launch bfs kernel (error code %s)!\n", cudaGetErrorString(err));
+	        exit(EXIT_FAILURE);
+	    }
+		//printf("Second kernel launch finished\n");
+
 		err = cudaMemcpy(&h_done, d_done, sizeof(bool), cudaMemcpyDeviceToHost);
 		if (err != cudaSuccess)
 	    {
@@ -125,6 +133,9 @@ int main(int argc, char** argv){
 	        fprintf(stderr, "Failed to copy d_current_depth to host (error code %s)!\n", cudaGetErrorString(err));
 	        exit(EXIT_FAILURE);
 	    }
+
+	    printf("BFS run for level %d\n", h_current_depth);
+
 
 	}
 	//printf("Breadth first traversal completed over %d levels\n", h_current_depth);
