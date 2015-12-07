@@ -10,7 +10,7 @@ __global__ void initialize_vertices(int* vertices, int starting_vertex){
 	} 
 }
 
-__global__ void bfs(Edge* edges, int* vertices, int* current_depth, bool* done){
+__global__ void bfs(Edge* edges, int* vertices, int current_depth, bool* done){
 
 	int e = blockDim.x * blockIdx.x + threadIdx.x;
 	int vfirst = edges[e].first;
@@ -18,16 +18,13 @@ __global__ void bfs(Edge* edges, int* vertices, int* current_depth, bool* done){
 	int vsecond = edges[e].second;
 	int dsecond = vertices[vsecond];
 
-	if((dfirst == *current_depth) && (dsecond == -1)){
-		vertices[vsecond] = dfirst +1;
+	if((dfirst == current_depth) && (dsecond == -1)){
+		vertices[vsecond] = current_depth;
 		__syncthreads();
-		*current_depth = dfirst+1;
 		*done = false;
-	}
-	if((dsecond == *current_depth) && (dfirst == -1)){
-		vertices[vfirst] = dsecond + 1;
+	}else if((dsecond == current_depth) && (dfirst == -1)){
+		vertices[vfirst] = current_depth;
 		__syncthreads();
-		*current_depth = dsecond +1;
 		*done = false;
 	}
 }
