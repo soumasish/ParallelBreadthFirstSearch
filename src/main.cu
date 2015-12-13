@@ -2,12 +2,15 @@
 
 int main(int argc, char** argv){
 	
-	const int NUM_VERTICES = 10240;
+	const int NUM_VERTICES = 1024;
 	const size_t VERTEX_BYTES = NUM_VERTICES * sizeof(int);
-	const int NUM_EDGES = 10240;
+	const int NUM_EDGES = 2048;
 	const size_t EDGE_BYTES = NUM_EDGES * sizeof(Edge);
-	const int STARTING_VERTEX = 25;
+	const int STARTING_VERTEX = 82;
 	cudaError_t err = cudaSuccess;
+
+	clock_t begin, end;
+	double time_spent;
 
 	
 	//declare the two arrays on host
@@ -15,12 +18,28 @@ int main(int argc, char** argv){
 	Edge h_edges[NUM_EDGES];
 	
 
-	//fill up the edges array
-	for (int i = 0; i < NUM_EDGES; ++i)   
+	FILE *infile;
+    const char *path = "DataSet/1024.txt";
+    char line[100];
+    int first, second;
+    infile = fopen(path, "r");
+
+  	if (!infile) {
+    	printf("Couldn't open %s for reading\n", path);
+    	exit(-1);
+  	}
+  	int i=0;
+	while (fgets(line, sizeof(line), infile)!= NULL) 
 	{
-	    h_edges[i].first = (rand() % (NUM_VERTICES+1));
-	    h_edges[i].second = (rand() % (NUM_VERTICES+1));
+		
+		sscanf(line, "%d\t%d", &first, &second);
+
+	    h_edges[i].first = first;
+	    h_edges[i].second = second;
+	    i++;
 	}
+	
+	fclose(infile);
 	
 	//define the two arrays on the device
 	Edge* d_edges;
@@ -55,10 +74,11 @@ int main(int argc, char** argv){
     }
 	//assign thread configuration
     int threadsPerBlock = 1024;
-    int blocksPerGrid =(NUM_VERTICES + threadsPerBlock - 1) / threadsPerBlock;
-    printf("CUDA kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
+    int blocks = 2;
+    //int blocksPerGrid =(NUM_VERTICES + threadsPerBlock - 1) / threadsPerBlock;
+    printf("CUDA kernel launch with %d blocks of %d threads\n", blocks, threadsPerBlock);
 
-		initialize_vertices<<<blocksPerGrid, threadsPerBlock>>>(d_vertices, STARTING_VERTEX);
+		initialize_vertices<<<blocks, threadsPerBlock>>>(d_vertices, STARTING_VERTEX);
 	err = cudaGetLastError();
 	if (err != cudaSuccess)
     {
@@ -71,30 +91,31 @@ int main(int argc, char** argv){
 	int current_depth = 1;
 
 	//Allocate and initialize done on host and device
-	bool* d_done;
-	bool h_done;
-	err = cudaMalloc((void**)&d_done, sizeof(bool));
+	int* d_modified;
+	int h_modified;
+	err = cudaMalloc((void**)&d_modified, sizeof(int));
 	if (err != cudaSuccess)
 	{
 	    fprintf(stderr, "Failed to allocte d_done(error code %s)!\n", cudaGetErrorString(err));
 	    exit(EXIT_FAILURE);
 	}
 	
+	begin = clock();
 
-	for(;;){
-		if(h_done == true) break;
-		h_done = true;
+	do{
+		
+		h_modified = 0;
 		//printf("Entered while loop\n");
-		err = cudaMemcpy(d_done, &h_done, sizeof(bool), cudaMemcpyHostToDevice);
+		err = cudaMemcpy(d_modified, &h_modified, sizeof(int), cudaMemcpyHostToDevice);
 		if (err != cudaSuccess)
 	    {
 	        fprintf(stderr, "Failed to copy h_done to device(error code %s)!\n", cudaGetErrorString(err));
 	        exit(EXIT_FAILURE);
 	    }
 
-	    printf("CUDA kernel launching with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
+	    printf("CUDA kernel launching with %d blocks of %d threads\n", blocks, threadsPerBlock);
 
-		bfs<<<blocksPerGrid, threadsPerBlock>>>(d_edges, d_vertices, current_depth, d_done);
+		bfs<<<blocks, threadsPerBlock>>>(d_edges, d_vertices, current_depth, d_modified);
 		cudaThreadSynchronize();
 
 		err = cudaGetLastError();
@@ -105,7 +126,7 @@ int main(int argc, char** argv){
 	    }
 		//printf("Second kernel launch finished\n");
 
-		err = cudaMemcpy(&h_done, d_done, sizeof(bool), cudaMemcpyDeviceToHost);
+		err = cudaMemcpy(&h_modified, d_modified, sizeof(int), cudaMemcpyDeviceToHost);
 		if (err != cudaSuccess)
 	    {
 	        fprintf(stderr, "Failed to copy d_done to host(error code %s)!\n", cudaGetErrorString(err));
@@ -116,8 +137,11 @@ int main(int argc, char** argv){
 	    current_depth++;
 
 
-	}
-	//printf("Breadth first traversal completed over %d levels\n", h_current_depth);
+	}while(h_modified != 0);
+	
+	end = clock();
+	time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+	printf("Time taken: %f\n", time_spent);
 	cudaFree(d_edges);
 	cudaFree(d_vertices);
 	//cudaFree(d_done);
