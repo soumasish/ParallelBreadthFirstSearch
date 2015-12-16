@@ -94,7 +94,7 @@ int main(int argc, char** argv){
     }
 	printf("Initialization completed\n");
 
-	err = cudaMemcpy(&h_vertices, d_vertices, VERTEX_BYTES, cudaMemcpyDeviceToHost);
+	err = cudaMemcpy(h_vertices, d_vertices, VERTEX_BYTES, cudaMemcpyDeviceToHost);
 
 	if (err != cudaSuccess)
     {
@@ -109,20 +109,22 @@ int main(int argc, char** argv){
 	// 	printf(((i % 4) != 3) ? "\t":"\n");
 	// }
 
+    //copy host vertices and edges array to device and prepare to launch kernel
 	err = cudaMemcpy(d_vertices, h_vertices, VERTEX_BYTES, cudaMemcpyHostToDevice);
 	if (err != cudaSuccess)
     {
         fprintf(stderr, "Failed to copy vertices array from host to device (error code %s)!\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
-	 //copy edges array from host to device
+	
 	err = cudaMemcpy(d_edges, h_edges, EDGE_BYTES, cudaMemcpyHostToDevice);
 	if (err != cudaSuccess)
     {
         fprintf(stderr, "Failed to copy edges array from host to device (error code %s)!\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
-	//Initialize depth counter
+	//Initialize depth counters
+	int previous_depth = 0;
 	int current_depth = 1;
 
 	//Allocate and initialize termination variable modified on host and device
@@ -140,7 +142,7 @@ int main(int argc, char** argv){
 	do{
 		
 		h_modified = 0;
-		//printf("Entered while loop\n");
+		
 		err = cudaMemcpy(d_modified, &h_modified, sizeof(int), cudaMemcpyHostToDevice);
 		if (err != cudaSuccess)
 	    {
@@ -150,7 +152,7 @@ int main(int argc, char** argv){
 
 	    printf("CUDA kernel launching with %d blocks of %d threads\n", edgeBlocks, threadsPerBlock);
 
-		bfs<<<edgeBlocks, threadsPerBlock>>>(d_edges, d_vertices, current_depth, d_modified);
+		bfs<<<edgeBlocks, threadsPerBlock>>>(d_edges, d_vertices, previous_depth, current_depth, d_modified);
 		cudaThreadSynchronize();
 
 		err = cudaGetLastError();
@@ -159,10 +161,9 @@ int main(int argc, char** argv){
 	        fprintf(stderr, "Failed to launch bfs kernel (error code %s)!\n", cudaGetErrorString(err));
 	        exit(EXIT_FAILURE);
 	    }
-		//printf("Second kernel launch finished\n");
 
 		err = cudaMemcpy(&h_modified, d_modified, sizeof(int), cudaMemcpyDeviceToHost);
-		printf("%d\n", h_modified);
+		
 		if (err != cudaSuccess)
 	    {
 	        fprintf(stderr, "Failed to copy d_done to host(error code %s)!\n", cudaGetErrorString(err));
@@ -170,6 +171,9 @@ int main(int argc, char** argv){
 	    }
 
 	    printf("BFS run for level %d\n", current_depth);
+
+
+	    previous_depth++;
 	    current_depth++;
 
 
