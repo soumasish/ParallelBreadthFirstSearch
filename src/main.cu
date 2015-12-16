@@ -7,7 +7,7 @@ int main(int argc, char** argv){
 	const size_t VERTEX_BYTES = NUM_VERTICES * sizeof(int);
 	const int NUM_EDGES = 2048;
 	const size_t EDGE_BYTES = NUM_EDGES * sizeof(Edge);
-	const int STARTING_VERTEX = 82;
+	const int STARTING_VERTEX = 85;
 	cudaError_t err = cudaSuccess;
 	
 	//assign thread configuration
@@ -24,7 +24,7 @@ int main(int argc, char** argv){
 	
 	//read file and write into host array
 	FILE *infile;
-    const char *path = "DataSet/1024.txt";
+    const char *path = "DataSet/1024-2048.txt";
     char line[100];
     int first, second;
     infile = fopen(path, "r");
