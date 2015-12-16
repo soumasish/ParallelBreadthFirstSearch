@@ -2,22 +2,27 @@
 
 int main(int argc, char** argv){
 	
+	//configurable parameters for data set
 	const int NUM_VERTICES = 1024;
 	const size_t VERTEX_BYTES = NUM_VERTICES * sizeof(int);
 	const int NUM_EDGES = 2048;
 	const size_t EDGE_BYTES = NUM_EDGES * sizeof(Edge);
 	const int STARTING_VERTEX = 82;
 	cudaError_t err = cudaSuccess;
-
+	
+	//assign thread configuration
+    int threadsPerBlock = 1024;
+    int vertexBlocks =(NUM_VERTICES + threadsPerBlock - 1) / threadsPerBlock;
+    int edgeBlocks =(NUM_EDGES + threadsPerBlock - 1) / threadsPerBlock;
 	clock_t begin, end;
 	double time_spent;
-
+	int edgeCounter= 0;
 	
 	//declare the two arrays on host
 	int h_vertices[NUM_VERTICES];
 	Edge h_edges[NUM_EDGES];
 	
-
+	//read file and write into host array
 	FILE *infile;
     const char *path = "DataSet/1024.txt";
     char line[100];
@@ -28,24 +33,33 @@ int main(int argc, char** argv){
     	printf("Couldn't open %s for reading\n", path);
     	exit(-1);
   	}
-  	int i=0;
+  
 	while (fgets(line, sizeof(line), infile)!= NULL) 
 	{
 		
 		sscanf(line, "%d\t%d", &first, &second);
 
-	    h_edges[i].first = first;
-	    h_edges[i].second = second;
-	    i++;
+	    h_edges[edgeCounter].first = first;
+	    h_edges[edgeCounter].second = second;
+	    
+	    edgeCounter++;
 	}
 	
 	fclose(infile);
+
+	//debugging log to check that the array has been correctly written
+	// for (int i = 0; i < NUM_EDGES; ++i)
+	// {
+	// 	printf("%d -> %d", h_edges[i].first, h_edges[i].second);
+	// 	printf(((i % 4) != 3) ? "\t":"\n");
+	// }
 	
-	//define the two arrays on the device
+	
+	//define pointers two device arrays
 	Edge* d_edges;
 	int* d_vertices;
 
-	//Allocate memory on device for both arrays
+	//allocate memory on device for both arrays
 	err = cudaMalloc((void**)&d_edges, EDGE_BYTES);
 	if (err != cudaSuccess)
     {
@@ -59,26 +73,19 @@ int main(int argc, char** argv){
         exit(EXIT_FAILURE);
     }
 	
-
-	err = cudaMemcpy(d_edges, h_edges, EDGE_BYTES, cudaMemcpyHostToDevice);
-	if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to copy edges array from host to device (error code %s)!\n", cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
+   
+    //copy vertices array from host to device
 	err = cudaMemcpy(d_vertices, h_vertices, VERTEX_BYTES, cudaMemcpyHostToDevice);
 	if (err != cudaSuccess)
     {
         fprintf(stderr, "Failed to copy vertices array from host to device (error code %s)!\n", cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
-	//assign thread configuration
-    int threadsPerBlock = 1024;
-    int blocks = 2;
-    //int blocksPerGrid =(NUM_VERTICES + threadsPerBlock - 1) / threadsPerBlock;
-    printf("CUDA kernel launch with %d blocks of %d threads\n", blocks, threadsPerBlock);
+	
+    printf("CUDA kernel launch with %d blocks of %d threads\n", vertexBlocks, threadsPerBlock);
 
-		initialize_vertices<<<blocks, threadsPerBlock>>>(d_vertices, STARTING_VERTEX);
+		initialize_vertices<<<vertexBlocks, threadsPerBlock>>>(d_vertices, STARTING_VERTEX);
+
 	err = cudaGetLastError();
 	if (err != cudaSuccess)
     {
@@ -86,11 +93,39 @@ int main(int argc, char** argv){
         exit(EXIT_FAILURE);
     }
 	printf("Initialization completed\n");
-	
+
+	err = cudaMemcpy(&h_vertices, d_vertices, VERTEX_BYTES, cudaMemcpyDeviceToHost);
+
+	if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to copy vertices array from device to kernel (error code %s)!\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+
+    //debugging log to check that the vertices has has been correctly initialized and copied back to host
+	// for (int i = 0; i < NUM_VERTICES; ++i)
+	// {
+	// 	printf("%d : %d", i, h_vertices[i]);
+	// 	printf(((i % 4) != 3) ? "\t":"\n");
+	// }
+
+	err = cudaMemcpy(d_vertices, h_vertices, VERTEX_BYTES, cudaMemcpyHostToDevice);
+	if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to copy vertices array from host to device (error code %s)!\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+	 //copy edges array from host to device
+	err = cudaMemcpy(d_edges, h_edges, EDGE_BYTES, cudaMemcpyHostToDevice);
+	if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to copy edges array from host to device (error code %s)!\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
 	//Initialize depth counter
 	int current_depth = 1;
 
-	//Allocate and initialize done on host and device
+	//Allocate and initialize termination variable modified on host and device
 	int* d_modified;
 	int h_modified;
 	err = cudaMalloc((void**)&d_modified, sizeof(int));
@@ -113,9 +148,9 @@ int main(int argc, char** argv){
 	        exit(EXIT_FAILURE);
 	    }
 
-	    printf("CUDA kernel launching with %d blocks of %d threads\n", blocks, threadsPerBlock);
+	    printf("CUDA kernel launching with %d blocks of %d threads\n", edgeBlocks, threadsPerBlock);
 
-		bfs<<<blocks, threadsPerBlock>>>(d_edges, d_vertices, current_depth, d_modified);
+		bfs<<<edgeBlocks, threadsPerBlock>>>(d_edges, d_vertices, current_depth, d_modified);
 		cudaThreadSynchronize();
 
 		err = cudaGetLastError();
@@ -127,6 +162,7 @@ int main(int argc, char** argv){
 		//printf("Second kernel launch finished\n");
 
 		err = cudaMemcpy(&h_modified, d_modified, sizeof(int), cudaMemcpyDeviceToHost);
+		printf("%d\n", h_modified);
 		if (err != cudaSuccess)
 	    {
 	        fprintf(stderr, "Failed to copy d_done to host(error code %s)!\n", cudaGetErrorString(err));
