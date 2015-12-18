@@ -3,17 +3,17 @@
 int main(int argc, char** argv){
 	
 	//configurable parameters for data set
-	const int NUM_VERTICES = 1024;
+	const int NUM_VERTICES = 8192;
 	const size_t VERTEX_BYTES = NUM_VERTICES * sizeof(int);
-	const int NUM_EDGES = 2048;
+	const int NUM_EDGES = 524288;
 	const size_t EDGE_BYTES = NUM_EDGES * sizeof(Edge);
-	const int STARTING_VERTEX = 85;
+	const int STARTING_VERTEX = 5571;
 	cudaError_t err = cudaSuccess;
 	
 	//assign thread configuration
     int threadsPerBlock = 1024;
-    int vertexBlocks =(NUM_VERTICES + threadsPerBlock - 1) / threadsPerBlock;
-    int edgeBlocks =(NUM_EDGES + threadsPerBlock - 1) / threadsPerBlock;
+    int blocks =(NUM_VERTICES + threadsPerBlock - 1) / threadsPerBlock;
+    //int edgeBlocks =(NUM_EDGES + threadsPerBlock - 1) / threadsPerBlock;
 	clock_t begin, end;
 	double time_spent;
 	int edgeCounter= 0;
@@ -24,7 +24,7 @@ int main(int argc, char** argv){
 	
 	//read file and write into host array
 	FILE *infile;
-    const char *path = "DataSet/1024-2048.txt";
+    const char *path = "DataSet/8192-524288.txt";
     char line[100];
     int first, second;
     infile = fopen(path, "r");
@@ -82,9 +82,9 @@ int main(int argc, char** argv){
         exit(EXIT_FAILURE);
     }
 	
-    printf("CUDA kernel launch with %d blocks of %d threads\n", vertexBlocks, threadsPerBlock);
+    //printf("CUDA kernel launch with %d blocks of %d threads\n", blocks, threadsPerBlock);
 
-		initialize_vertices<<<vertexBlocks, threadsPerBlock>>>(d_vertices, STARTING_VERTEX);
+		initialize_vertices<<<blocks, threadsPerBlock>>>(d_vertices, STARTING_VERTEX);
 
 	err = cudaGetLastError();
 	if (err != cudaSuccess)
@@ -150,9 +150,9 @@ int main(int argc, char** argv){
 	        exit(EXIT_FAILURE);
 	    }
 
-	    printf("CUDA kernel launching with %d blocks of %d threads\n", edgeBlocks, threadsPerBlock);
+	    //printf("CUDA kernel launching with %d blocks of %d threads\n", vertexBlocks, threadsPerBlock);
 
-		bfs<<<edgeBlocks, threadsPerBlock>>>(d_edges, d_vertices, previous_depth, current_depth, d_modified);
+		bfs<<<blocks, threadsPerBlock>>>(d_edges, d_vertices, previous_depth, current_depth, d_modified);
 		cudaThreadSynchronize();
 
 		err = cudaGetLastError();
@@ -170,7 +170,7 @@ int main(int argc, char** argv){
 	        exit(EXIT_FAILURE);
 	    }
 
-	    printf("BFS run for level %d\n", current_depth);
+	    //printf("BFS run for level %d\n", current_depth);
 
 
 	    previous_depth++;
