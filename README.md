@@ -1,25 +1,15 @@
-#Parallel BFS
+#Parallel BFS using CUDA 7.5
 
-The implementation of Parallel BFS is based on the following research paper
-http://impact.crhc.illinois.edu/shared/papers/effective2010.pdf
+Graph algorithms are a fundamental paradigm of computer Science and is relevant to many domains and application areas. Large graphs involving millions of vertices are common in scientific and engineering applications. Reasonable time bound  implementations of graph algorithms using high-end computing resources have been reported but are accessible to only a few. Graphics Processing Units (GPUs) are fast emerging as inexpensive parallel processors due to their high computation power and low price. The GeForce line of Nvidia GPUs provides the CUDA programming model that treats the GPU as a SIMD processor array. I’ve presented a fundamental graph algorithm - the breadth first search, using this programming model on large graphs. The  results on a graph of 500, 000 vertices would suggest  that the NVIDIA GPUs can be used as a reasonable co-processor to accelerate parts of an application.
 
-~The core algorithm
+Since BFS lends itself well to parallelization there are two common yet distinct strategies that are followed in the parallel execution of BFS: 
 
-This algorithm reads an arrray of edges parallely(with one thread being assigned to read each vertex) and writes the hierarchial level of each vertex from the starting vertex in a vertex array.
+	1.	The level-synchronous algorithm.
+	2.	The fixed-point algorithm
 
-The algorithm has a quadratic time complexity, however each thread runs parallely with no data dependency on each other.
+The level synchronous algorithm uses the following approach; it manages three sets of nodes - the visited set V , the current-level set C, and the next-level set N. Iteratively, the algorithm visits (in parallel) all the nodes in set C and transfers them to set V (in parallel). C is then populated with the nodes from set N, and N is cleared for the new iteration. This iterative process continues until naturally there is no node in the next level. The level synchronous algorithm effectively visits in parallel all nodes in each BFS level, with the parallel execution synchronizing at the end of each level iteration.
 
-~Specs of the NVIDIA device on which the code has been tested
+The fixed-point algorithm,on the other hand, continuously updates the BFS level of every node, based on BFS levels of all neighboring nodes until no more updates are made. This method is sub-optimal at times because of the lack of communication between neighboring nodes in parallel environments. For the purpose of this project I’ve based my implementation on this approach.
 
-NVIDIA GeForce GT 750M
-CUDA version 7.5
-Global Memory 2048 MBytes
-2 Multiprocessors, 192 CUDA Cores/MP Total 384 CUDA Cores
-GPU Max CLock 926 MHz
-Memory Clock rate 2508MHz
-L2 Cache Size 262144 bytes
-Warp Size 32
-Maximum number of threads peer multiprocessor 2048
-Maximum number of threads per block 1024
-Max dimension of thread block(x, y, z) 1024, 1024, 64
+
 
